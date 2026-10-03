@@ -1,12 +1,13 @@
 // Teste das migrations 0001, 0003, 0004 e 0005 num Postgres em memória (PGlite), sem tocar no Supabase.
-// Como rodar (instale o PGlite numa pasta temporaria, fora do projeto):
-//   mkdir %TEMP%\pgtest && cd %TEMP%\pgtest && npm init -y && npm i @electric-sql/pglite
-//   copie este arquivo para la e rode:  node licenca.pglite.mjs
+// Como rodar (dentro de site-estatico):
+//   npm i --no-save @electric-sql/pglite   (nao altera o package.json)
+//   node tests/licenca.pglite.mjs
 // Imita auth.users, auth.uid(), storage e os papeis anon/authenticated/service_role do Supabase.
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 // caminhos relativos a este arquivo (site-estatico/tests/)
-const R = new URL("../../", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+const R = fileURLToPath(new URL("../../", import.meta.url));
 const db = new PGlite();
 const run = (s) => db.exec(s);
 let ok = 0, bad = 0;
