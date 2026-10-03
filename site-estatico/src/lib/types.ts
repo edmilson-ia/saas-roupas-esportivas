@@ -16,6 +16,8 @@ export type Product = {
   price: number | string;
   stock?: number;
   active?: boolean;
+  /** posição na vitrine (1 = primeiro); definida pelo lojista no painel */
+  ordem?: number | null;
 };
 
 export type Customization = {

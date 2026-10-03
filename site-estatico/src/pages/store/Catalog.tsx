@@ -17,7 +17,7 @@ export default function Catalog() {
     const q = norm(query.trim());
     const list = products.filter((p) => !q || norm(p.name).includes(q) || norm(p.description ?? "").includes(q));
     const by: Record<Sort, (a: Product, b: Product) => number> = {
-      recent: () => 0, // o banco já devolve do mais novo para o mais antigo
+      recent: () => 0, // o banco já devolve na ordem definida pelo lojista (time por time)
       price_asc: (a, b) => Number(a.price) - Number(b.price),
       price_desc: (a, b) => Number(b.price) - Number(a.price),
       name: (a, b) => a.name.localeCompare(b.name, "pt-BR"),
@@ -35,9 +35,10 @@ export default function Catalog() {
         <div className="relative flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-8">
           <img src="/logo.png" alt={store.name} width={520} height={247} className="h-28 w-auto drop-shadow-lg sm:h-36" />
           <div>
-            <h1 className="text-2xl font-extrabold sm:text-3xl">Camisas personalizadas</h1>
+            <h1 className="text-2xl font-extrabold sm:text-3xl">Catálogo de camisas</h1>
             <p className="mt-1 max-w-md text-brand-100">
-              Escolha o modelo, coloque nome, número e brasão e envie o pedido pelo WhatsApp.
+              Escolha o modelo e envie o pedido pelo WhatsApp. A personalização (nome, número e brasão) é feita pela
+              loja na hora.
             </p>
             {store.whatsapp && (
               <a
@@ -62,7 +63,7 @@ export default function Catalog() {
           aria-label="Buscar produtos"
         />
         <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="input sm:!w-52" aria-label="Ordenar">
-          <option value="recent">Mais recentes</option>
+          <option value="recent">Ordem da loja</option>
           <option value="price_asc">Menor preço</option>
           <option value="price_desc">Maior preço</option>
           <option value="name">Nome (A–Z)</option>
@@ -91,7 +92,7 @@ export default function Catalog() {
                     <div className="flex h-64 items-center justify-center text-slate-400">Sem imagem</div>
                   )}
                   <span className="absolute left-2 top-2 rounded-full bg-brand-600 px-2 py-0.5 text-xs font-medium text-white">
-                    Personalizável
+                    Personalizamos na hora
                   </span>
                 </div>
                 <div className="flex flex-1 flex-col gap-2 p-3">
@@ -107,7 +108,7 @@ export default function Catalog() {
                     </div>
                   )}
                   <p className="mt-auto text-lg font-bold text-brand-700">{brl(p.price)}</p>
-                  <span className="btn w-full">Personalizar</span>
+                  <span className="btn w-full">Ver detalhes</span>
                 </div>
               </Link>
             );

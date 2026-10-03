@@ -23,9 +23,9 @@ function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-6 px-4 text-center">
       <img src="/logo.png" alt="Gold'n Ports" width={520} height={247} className="h-32 w-auto rounded-xl bg-brand-900 p-4" />
-      <h1 className="text-3xl font-bold">Uniformes e camisas personalizadas</h1>
+      <h1 className="text-3xl font-bold">Catálogo de camisas e uniformes</h1>
       <p className="text-slate-600">
-        Crie sua loja de roupas esportivas, receba pedidos com nome, número e brasão já montados no editor.
+        Crie sua loja de roupas esportivas, mostre o catálogo e receba os pedidos pelo WhatsApp.
       </p>
       <div className="flex gap-3">
         <Link to="/cadastrar" className="btn">Criar minha loja</Link>

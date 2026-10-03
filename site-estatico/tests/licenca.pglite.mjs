@@ -157,4 +157,27 @@ check("pedidos antigos continuam salvos apos as pausas", n >= 5, String(n));
 const pidOld = (await db.query("select id from products where organization_id=$1", [OLD])).rows[0].id;
 const slugOld = (await db.query("select slug from organizations where id=$1", [OLD])).rows[0].slug;
 r = await pedir(slugOld, pidOld); check("loja antiga (isenta) continua aceitando pedidos", r.ok, r.msg);
+// ---- 0006: ordem dos produtos na vitrine ----
+await run(`insert into products(organization_id,name,price,stock,available_colors,available_sizes,created_at) values
+  ('${OLD}','Flamengo preta',100,5,'[]','["M"]', now() - interval '3 days'),
+  ('${OLD}','Fluminense',100,5,'[]','["M"]', now() - interval '2 days'),
+  ('${OLD}','Flamengo branca',100,5,'[]','["M"]', now() - interval '1 day')`);
+const m6 = readFileSync(R + "site-estatico/sql/0006_ordem_produtos.sql", "utf8");
+await run(m6);
+await run(m6);
+check("0006 roda duas vezes (idempotente)", true);
+const nomes = async () => (await tryq("anon", "", "select public.store_catalog($1) as c", [slugOld])).rows[0].c.products.map((p) => p.name);
+let ordemAtual = await nomes();
+const times = (l) => l.filter((n) => /^Flam|^Flu/.test(n));
+check("ordem inicial = mais novo primeiro", times(ordemAtual).join("|") === "Flamengo branca|Fluminense|Flamengo preta", ordemAtual.join(" | "));
+// o lojista agrupa por time: Flamengo preta, Flamengo branca, Fluminense
+await run(`update products set ordem=9 where name='Camisa'`);
+await run(`update products set ordem=1 where name='Flamengo preta'; update products set ordem=2 where name='Flamengo branca'; update products set ordem=3 where name='Fluminense'`);
+ordemAtual = await nomes();
+check("vitrine segue a ordem do lojista (time por time)", ordemAtual.slice(0, 3).join("|") === "Flamengo preta|Flamengo branca|Fluminense" && ordemAtual[3] === "Camisa", ordemAtual.join(" | "));
+await run(`insert into products(organization_id,name,price,stock,available_colors,available_sizes) values ('${OLD}','Sem posicao',100,5,'[]','["M"]')`);
+ordemAtual = await nomes();
+check("produto sem posicao vai para o fim", ordemAtual[ordemAtual.length - 1] === "Sem posicao", ordemAtual.join(" | "));
+r = await tryq("anon", "", "select public.store_catalog($1) as c", [slugOld]);
+check("0006 mantem 'ativa' e nao expoe e-mail", r.rows[0].c.ativa === true && !JSON.stringify(r.rows[0].c).includes("@"));
 console.log(`\n${ok} ok, ${bad} falhas`);

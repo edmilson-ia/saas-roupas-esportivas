@@ -20,13 +20,15 @@ export default function CartPage() {
           <div className="space-y-3">
             {items.map((it) => (
               <div key={it.key} className="card flex flex-wrap gap-4">
-                <img src={it.customization_image} alt="Customização" className="h-28 w-56 max-w-full rounded bg-slate-100 object-contain" />
+                {it.customization_image ? (
+                  <img src={it.customization_image} alt={it.product_name} className="h-28 w-28 rounded bg-slate-100 object-contain" />
+                ) : (
+                  <span className="h-28 w-28 rounded bg-slate-100" />
+                )}
                 <div className="min-w-40 flex-1 text-sm">
                   <p className="font-semibold">{it.product_name}</p>
                   <p className="text-slate-600">
                     Tamanho {it.size}
-                    {it.customization_data.name && <> · Nome: {it.customization_data.name}</>}
-                    {it.customization_data.number != null && <> · Nº {it.customization_data.number}</>}
                     {it.customization_data.color && <> · {it.customization_data.color}</>}
                   </p>
                   <div className="mt-2 flex items-center gap-3">
@@ -45,6 +47,10 @@ export default function CartPage() {
               </div>
             ))}
           </div>
+          <p className="rounded-lg border border-brand-200 bg-brand-50 p-3 text-sm text-brand-900">
+            <b>Personalização na hora:</b> nome, número e brasão são feitos pela loja. Combine os detalhes pelo WhatsApp
+            depois de enviar o pedido.
+          </p>
           <div className="flex items-center justify-between">
             <p className="text-lg font-bold">Total: {brl(total)}</p>
             {ativa ? (

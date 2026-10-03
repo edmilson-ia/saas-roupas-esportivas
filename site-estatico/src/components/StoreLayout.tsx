@@ -129,7 +129,7 @@ function Shell({ slug }: { slug: string }) {
         {data && <Outlet context={data} />}
       </main>
       <footer className="border-t bg-white py-4 text-center text-xs text-slate-500">
-        {data?.store.name} · Os pedidos são combinados pelo WhatsApp
+        {data?.store.name} · Personalização feita pela loja na hora · Pedidos combinados pelo WhatsApp
         <br />
         No iPhone: toque em Compartilhar → Adicionar à Tela de Início para instalar o app.
       </footer>

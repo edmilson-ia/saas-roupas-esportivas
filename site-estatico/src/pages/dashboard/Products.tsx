@@ -9,9 +9,7 @@ type ColorRow = {
   id: string;
   name: string;
   image_url: string | null;
-  back_image_url: string | null;
   file: File | null;
-  backFile: File | null;
 };
 
 export default function Products() {
@@ -23,9 +21,34 @@ export default function Products() {
 
   const load = useCallback(async () => {
     const { data, error: err } = await supabase.from("products").select("*").order("created_at", { ascending: false });
-    if (err) setError(errMsg(err));
-    else setProducts((data ?? []) as Product[]);
+    if (err) return setError(errMsg(err));
+    // ordem da vitrine: posição definida pelo lojista; sem posição vai para o fim (mais novos primeiro)
+    const list = ((data ?? []) as Product[]).slice().sort(
+      (a, b) => (a.ordem ?? Number.MAX_SAFE_INTEGER) - (b.ordem ?? Number.MAX_SAFE_INTEGER)
+    );
+    setProducts(list);
   }, []);
+
+  /** Sobe/desce um produto e regrava as posições 1..N (a lista já está na ordem atual). */
+  async function mover(index: number, delta: -1 | 1) {
+    const alvo = index + delta;
+    if (alvo < 0 || alvo >= products.length) return;
+    setError("");
+    const nova = products.slice();
+    [nova[index], nova[alvo]] = [nova[alvo], nova[index]];
+    const mudou = nova.map((p, i) => ({ p, pos: i + 1 })).filter(({ p, pos }) => p.ordem !== pos);
+    const results = await Promise.all(
+      mudou.map(({ p, pos }) => supabase.from("products").update({ ordem: pos }).eq("id", p.id).select("id").maybeSingle())
+    );
+    const falha = results.find((r) => r.error || !r.data);
+    if (falha) {
+      const msg = falha.error ? errMsg(falha.error) : "sem permissão";
+      return setError(
+        /ordem/.test(msg) ? "Para ordenar, rode antes o SQL 0006_ordem_produtos.sql no Supabase." : `Não foi possível reordenar (${msg})`
+      );
+    }
+    load();
+  }
   useEffect(() => {
     load();
   }, [load]);
@@ -49,7 +72,10 @@ export default function Products() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Produtos</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Produtos</h1>
+          <p className="text-xs text-slate-500">A vitrine segue esta ordem. Use ▲ ▼ para agrupar time por time.</p>
+        </div>
         <button className="btn" onClick={() => { setEditing(null); setShowForm(true); }}>Adicionar produto</button>
       </div>
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
@@ -58,12 +84,15 @@ export default function Products() {
           key={editing?.id ?? "novo"}
           orgId={org.id}
           product={editing}
+          nextOrdem={
+            products.some((p) => "ordem" in p) ? Math.max(0, ...products.map((p) => p.ordem ?? 0)) + 1 : undefined
+          }
           onDone={() => { setShowForm(false); load(); }}
           onCancel={() => setShowForm(false)}
         />
       )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {products.map((p) => {
+        {products.map((p, index) => {
           const colors = normalizeColors(p.available_colors);
           const cover = p.base_image_url ?? colors[0]?.image_url ?? null;
           return (
@@ -91,9 +120,28 @@ export default function Products() {
                 />
                 {!p.active && <span className="text-xs text-amber-600">inativo</span>}
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button className="btn-secondary" onClick={() => { setEditing(p); setShowForm(true); }}>Editar</button>
                 <button className="btn-secondary !text-red-600" onClick={() => remove(p)}>Excluir</button>
+                <span className="ml-auto flex items-center gap-1" title="Ordem na vitrine">
+                  <span className="text-xs text-slate-500">#{index + 1}</span>
+                  <button
+                    className="btn-secondary !px-2.5"
+                    onClick={() => mover(index, -1)}
+                    disabled={index === 0}
+                    aria-label={`Subir ${p.name}`}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    className="btn-secondary !px-2.5"
+                    onClick={() => mover(index, 1)}
+                    disabled={index === products.length - 1}
+                    aria-label={`Descer ${p.name}`}
+                  >
+                    ▼
+                  </button>
+                </span>
               </div>
             </div>
           );
@@ -114,8 +162,8 @@ async function uploadImage(orgId: string, file: File): Promise<string> {
 }
 
 function ProductForm({
-  orgId, product, onDone, onCancel,
-}: { orgId: string; product: Product | null; onDone: () => void; onCancel: () => void }) {
+  orgId, product, nextOrdem, onDone, onCancel,
+}: { orgId: string; product: Product | null; nextOrdem?: number; onDone: () => void; onCancel: () => void }) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [rows, setRows] = useState<ColorRow[]>(() => {
@@ -125,9 +173,7 @@ function ProductForm({
       id: crypto.randomUUID(),
       name: c.name,
       image_url: c.image_url,
-      back_image_url: c.back_image_url ?? null,
       file: null,
-      backFile: null,
     }));
   });
   const updateRow = (id: string, patch: Partial<ColorRow>) =>
@@ -152,7 +198,6 @@ function ProductForm({
         colors.push({
           name: r.name.trim(),
           image_url: r.file ? await uploadImage(orgId, r.file) : r.image_url,
-          back_image_url: r.backFile ? await uploadImage(orgId, r.backFile) : r.back_image_url,
         });
       }
       const body = {
@@ -167,7 +212,7 @@ function ProductForm({
       };
       const q = product
         ? supabase.from("products").update(body).eq("id", product.id)
-        : supabase.from("products").insert({ ...body, organization_id: orgId });
+        : supabase.from("products").insert({ ...body, organization_id: orgId, ...(nextOrdem ? { ordem: nextOrdem } : {}) });
       const { data, error: err } = await q.select("id").maybeSingle();
       if (err) throw err;
       if (!data) throw new Error("Não foi possível salvar (sem permissão)");
@@ -202,7 +247,7 @@ function ProductForm({
         <input name="stock" type="number" min={0} required defaultValue={product?.stock ?? 0} className="input" />
       </div>
       <div className="space-y-2 md:col-span-2">
-        <label className="label">Cores — foto da frente e das costas da camisa para cada cor</label>
+        <label className="label">Cores — uma foto da camisa para cada cor</label>
         {rows.map((r) => (
           <div key={r.id} className="flex flex-wrap items-center gap-2 rounded border p-2">
             {(r.file || r.image_url) && (
@@ -219,12 +264,8 @@ function ProductForm({
               className="input !w-56"
             />
             <label className="text-xs text-slate-600">
-              Frente {r.image_url && !r.file && "✓"}
+              Foto {r.image_url && !r.file && "✓"}
               <input type="file" accept="image/*" onChange={(e) => updateRow(r.id, { file: e.target.files?.[0] ?? null })} className="input" />
-            </label>
-            <label className="text-xs text-slate-600">
-              Costas {r.back_image_url && !r.backFile && "✓"}
-              <input type="file" accept="image/*" onChange={(e) => updateRow(r.id, { backFile: e.target.files?.[0] ?? null })} className="input" />
             </label>
             <button
               type="button"
@@ -238,7 +279,7 @@ function ProductForm({
         <button
           type="button"
           className="btn-secondary"
-          onClick={() => setRows((x) => [...x, { id: crypto.randomUUID(), name: "", image_url: null, back_image_url: null, file: null, backFile: null }])}
+          onClick={() => setRows((x) => [...x, { id: crypto.randomUUID(), name: "", image_url: null, file: null }])}
         >
           + Adicionar cor
         </button>

@@ -7,10 +7,6 @@ import { brl } from "@/lib/types";
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-async function dataUrlToBlob(dataUrl: string) {
-  return (await fetch(dataUrl)).blob();
-}
-
 export default function CheckoutPage() {
   const { slug } = useParams();
   const { store, ativa } = useStore();
@@ -32,50 +28,32 @@ export default function CheckoutPage() {
 
     setLoading(true);
     try {
-      // 1) sobe a imagem do design de cada item (PNG, nome aleatório)
-      const urls: string[] = [];
-      for (const it of items) {
-        const path = `${crypto.randomUUID()}.png`;
-        const { error: upErr } = await supabase.storage
-          .from("customizations")
-          .upload(path, await dataUrlToBlob(it.customization_image), { contentType: "image/png" });
-        if (upErr) throw new Error("Não foi possível enviar a imagem do design. Tente de novo.");
-        urls.push(supabase.storage.from("customizations").getPublicUrl(path).data.publicUrl);
-      }
-
-      // 2) o banco confere preço, tamanho, cor e estoque e grava o pedido
+      // 1) o banco confere preço, tamanho, cor e estoque e grava o pedido
+      //    (sem personalização: a loja faz nome/número/brasão na hora)
       const { data, error: rpcErr } = await supabase.rpc("create_order", {
         p_slug: slug,
         p_name: name,
         p_email: email,
-        p_items: items.map((it, i) => ({
+        p_items: items.map((it) => ({
           product_id: it.product_id,
           quantity: it.quantity,
           size: it.size,
-          customization_data: it.customization_data,
-          customization_image_url: urls[i],
+          customization_data: it.customization_data.color ? { color: it.customization_data.color } : {},
+          customization_image_url: null,
         })),
       });
       if (rpcErr) throw rpcErr;
       const { order_id, total: saved } = data as { order_id: string; total: number };
 
-      // 3) mensagem para a loja com o resumo
-      const lines = items.map((it, i) => {
-        const c = it.customization_data;
-        const extras = [c.color && `Cor: ${c.color}`, c.name && `Nome: ${c.name}`, c.number != null && `Nº ${c.number}`]
-          .filter(Boolean)
-          .join(" | ");
-        return [
-          `${it.quantity}x ${it.product_name} - Tam. ${it.size} - ${brl(it.unit_price * it.quantity)}`,
-          extras && `   ${extras}`,
-          `   Design: ${urls[i]}`,
-        ]
-          .filter(Boolean)
-          .join("\n");
+      // 2) mensagem para a loja com o resumo
+      const lines = items.map((it) => {
+        const cor = it.customization_data.color ? ` - Cor: ${it.customization_data.color}` : "";
+        return `${it.quantity}x ${it.product_name} - Tam. ${it.size}${cor} - ${brl(it.unit_price * it.quantity)}`;
       });
       const text =
         `Olá! Fiz um pedido pelo catálogo.\nPedido: #${order_id.slice(0, 8).toUpperCase()}\n` +
-        `Cliente: ${name} (${email})\n\n${lines.join("\n\n")}\n\nTotal: ${brl(saved)}`;
+        `Cliente: ${name} (${email})\n\n${lines.join("\n")}\n\nTotal: ${brl(saved)}\n\n` +
+        `Quero personalizar com nome, número e brasão. Podemos combinar?`;
 
       clear(); // só limpa depois do pedido salvo
       window.location.href = whatsappLink(store.whatsapp, text);
@@ -114,13 +92,20 @@ export default function CheckoutPage() {
         <h2 className="font-bold">Resumo</h2>
         {items.map((i) => (
           <div key={i.key} className="flex items-center gap-3 text-sm">
-            <img src={i.customization_image} alt="" className="h-14 w-28 rounded bg-slate-100 object-contain" />
+            {i.customization_image ? (
+              <img src={i.customization_image} alt="" className="h-14 w-14 rounded bg-slate-100 object-contain" />
+            ) : (
+              <span className="h-14 w-14 rounded bg-slate-100" />
+            )}
             <span className="flex-1">{i.quantity}× {i.product_name} ({i.size})</span>
             <span>{brl(i.unit_price * i.quantity)}</span>
           </div>
         ))}
         <p className="border-t pt-2 text-right font-bold">Total: {brl(total)}</p>
-        <p className="text-xs text-slate-500">O valor final é conferido pela loja ao receber o pedido.</p>
+        <p className="text-xs text-slate-500">
+          Nome, número e brasão são feitos pela loja na hora; combine os detalhes pelo WhatsApp. O valor final é
+          conferido pela loja ao receber o pedido.
+        </p>
       </div>
     </div>
   );
