@@ -180,4 +180,26 @@ ordemAtual = await nomes();
 check("produto sem posicao vai para o fim", ordemAtual[ordemAtual.length - 1] === "Sem posicao", ordemAtual.join(" | "));
 r = await tryq("anon", "", "select public.store_catalog($1) as c", [slugOld]);
 check("0006 mantem 'ativa' e nao expoe e-mail", r.rows[0].c.ativa === true && !JSON.stringify(r.rows[0].c).includes("@"));
+// ---- 0007: contato do cliente = WhatsApp ----
+const m7 = readFileSync(R + "site-estatico/sql/0007_whatsapp_cliente.sql", "utf8");
+await run(m7);
+await run(m7);
+check("0007 roda duas vezes (idempotente)", true);
+const pidOld2 = (await db.query("select id from products where organization_id=$1 and name='Fluminense'", [OLD])).rows[0].id;
+const itens = (pid) => JSON.stringify([{ product_id: pid, quantity: 1, size: "M", customization_data: {}, customization_image_url: null }]);
+const pedirFone = (fone, slug = slugOld, pid = pidOld2) =>
+  tryq("anon", "", "select public.create_order($1,'Maria Souza',$2,$3::jsonb) as r", [slug, fone, itens(pid)]);
+r = await pedirFone("(21) 98765-4321");
+check("pedido com WhatsApp formatado e aceito", r.ok, r.msg);
+let o = (await db.query("select customer_phone, customer_email, customer_name from orders where customer_name='Maria Souza' order by created_at desc limit 1")).rows[0];
+check("guarda so digitos com 55 e sem e-mail", o.customer_phone === "5521987654321" && o.customer_email === null, JSON.stringify(o));
+r = await pedirFone("5511912345678"); check("aceita numero que ja vem com 55", r.ok, r.msg);
+r = await pedirFone("12345"); check("recusa WhatsApp curto", !r.ok && /WhatsApp inv/.test(r.msg), r.msg);
+r = await pedirFone("joao@x.com"); check("recusa e-mail no lugar do WhatsApp", !r.ok && /WhatsApp inv/.test(r.msg), r.msg);
+r = await pedirFone(""); check("recusa WhatsApp vazio", !r.ok, r.msg);
+r = await pedirFone("(21) 98765-4321", "nao-existe"); check("loja inexistente continua recusada", !r.ok && /Loja n/.test(r.msg), r.msg);
+await master("select public.master_bloquear($1,'x')", [OLD]);
+r = await pedirFone("(21) 98765-4321"); check("loja bloqueada continua recusando pedido", !r.ok && /pausada/.test(r.msg), r.msg);
+await master("select public.master_liberar($1)", [OLD]);
+r = await tryq("anon", "", "select * from orders"); check("anon continua sem ler pedidos", r.ok && r.rows.length === 0, JSON.stringify(r).slice(0, 80));
 console.log(`\n${ok} ok, ${bad} falhas`);

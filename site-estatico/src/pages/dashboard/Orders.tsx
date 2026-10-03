@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { formatPhone } from "@/lib/phone";
 import { errMsg, supabase } from "@/lib/supabase";
 import { brl, STATUS_LABEL, type Order } from "@/lib/types";
 
@@ -7,6 +8,24 @@ const BADGE: Record<Order["status"], string> = {
   in_production: "bg-amber-100 text-amber-800",
   shipped: "bg-emerald-100 text-emerald-800",
 };
+
+/** WhatsApp do cliente com link para chamar; pedidos antigos ainda mostram o e-mail. */
+function Contato({ order }: { order: Order }) {
+  if (order.customer_phone) {
+    return (
+      <a
+        href={`https://wa.me/${order.customer_phone}`}
+        target="_blank"
+        rel="noreferrer"
+        className="text-xs font-medium text-brand-700 hover:underline"
+        title="Chamar no WhatsApp"
+      >
+        {formatPhone(order.customer_phone)} ↗
+      </a>
+    );
+  }
+  return <span className="text-xs text-slate-500">{order.customer_email ?? "—"}</span>;
+}
 
 export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -62,7 +81,7 @@ export default function Orders() {
             {orders.map((o) => (
               <tr key={o.id} className="border-t">
                 <td className="p-3 font-mono text-xs">{o.id.slice(0, 8).toUpperCase()}</td>
-                <td className="p-3">{o.customer_name}<br /><span className="text-xs text-slate-500">{o.customer_email}</span></td>
+                <td className="p-3">{o.customer_name}<br /><Contato order={o} /></td>
                 <td className="p-3"><span className={`rounded px-2 py-0.5 text-xs font-medium ${BADGE[o.status]}`}>{STATUS_LABEL[o.status]}</span></td>
                 <td className="p-3">{new Date(o.created_at).toLocaleDateString("pt-BR")}</td>
                 <td className="p-3">{brl(o.total_price)}</td>
@@ -80,7 +99,7 @@ export default function Orders() {
             <div className="mb-4 flex items-start justify-between">
               <div>
                 <h2 className="text-lg font-bold">Pedido {selected.id.slice(0, 8).toUpperCase()}</h2>
-                <p className="text-sm text-slate-600">{selected.customer_name} · {selected.customer_email}</p>
+                <p className="text-sm text-slate-600">{selected.customer_name} · <Contato order={selected} /></p>
               </div>
               <button className="btn-secondary" onClick={() => setSelected(null)}>Fechar</button>
             </div>

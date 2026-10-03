@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useCart } from "@/components/CartProvider";
 import { useStore, whatsappLink } from "@/components/StoreLayout";
+import { formatPhone, normalizePhone } from "@/lib/phone";
 import { errMsg, supabase } from "@/lib/supabase";
 import { brl } from "@/lib/types";
 
-const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export default function CheckoutPage() {
   const { slug } = useParams();
@@ -18,11 +18,11 @@ export default function CheckoutPage() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const name = String(f.get("name") ?? "").trim();
-    const email = String(f.get("email") ?? "").trim();
+    const phone = normalizePhone(String(f.get("phone") ?? ""));
     setError("");
     if (!ativa) return setError("Esta loja não está recebendo novos pedidos no momento");
     if (name.length < 2) return setError("Informe seu nome");
-    if (!EMAIL.test(email)) return setError("Informe um e-mail válido");
+    if (!phone || phone === "invalid") return setError("Informe seu WhatsApp com DDD, por exemplo (21) 98765-4321");
     // falha ANTES de salvar, para não criar pedido sem ter para onde enviar
     if (!store.whatsapp) return setError("A loja ainda não configurou o WhatsApp para receber pedidos");
 
@@ -33,7 +33,7 @@ export default function CheckoutPage() {
       const { data, error: rpcErr } = await supabase.rpc("create_order", {
         p_slug: slug,
         p_name: name,
-        p_email: email,
+        p_phone: phone,
         p_items: items.map((it) => ({
           product_id: it.product_id,
           quantity: it.quantity,
@@ -52,7 +52,7 @@ export default function CheckoutPage() {
       });
       const text =
         `Olá! Fiz um pedido pelo catálogo.\nPedido: #${order_id.slice(0, 8).toUpperCase()}\n` +
-        `Cliente: ${name} (${email})\n\n${lines.join("\n")}\n\nTotal: ${brl(saved)}\n\n` +
+        `Cliente: ${name} - WhatsApp ${formatPhone(phone)}\n\n${lines.join("\n")}\n\nTotal: ${brl(saved)}\n\n` +
         `Quero personalizar com nome, número e brasão. Podemos combinar?`;
 
       clear(); // só limpa depois do pedido salvo
@@ -80,8 +80,18 @@ export default function CheckoutPage() {
           <input id="name" name="name" required minLength={2} className="input" />
         </div>
         <div>
-          <label className="label" htmlFor="email">E-mail</label>
-          <input id="email" name="email" type="email" required className="input" />
+          <label className="label" htmlFor="phone">Seu WhatsApp (com DDD)</label>
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            required
+            placeholder="(21) 98765-4321"
+            className="input"
+          />
+          <p className="mt-1 text-xs text-slate-500">A loja vai chamar você neste número para combinar a personalização.</p>
         </div>
         {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
         <button className="btn w-full" disabled={loading || !ativa}>

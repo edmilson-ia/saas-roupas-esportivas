@@ -1,14 +1,7 @@
 import { useState } from "react";
+import { normalizePhone } from "@/lib/phone";
 import { errMsg, supabase } from "@/lib/supabase";
 import { useOrg } from "./DashboardLayout";
-
-/** "(21) 98658-0480" -> "5521986580480". Devolve null se estiver fora do padrão. */
-function normalizePhone(raw: string): string | null | "invalid" {
-  let d = raw.replace(/\D/g, "");
-  if (d === "") return null;
-  if (d.length === 10 || d.length === 11) d = `55${d}`;
-  return /^\d{12,13}$/.test(d) ? d : "invalid";
-}
 
 export default function Settings() {
   const org = useOrg();

@@ -41,7 +41,8 @@ export type OrderItem = {
 export type Order = {
   id: string;
   customer_name: string;
-  customer_email: string;
+  customer_email?: string | null; // pedidos antigos; os novos guardam o WhatsApp
+  customer_phone?: string | null;
   status: "pending" | "in_production" | "shipped";
   total_price: number | string;
   created_at: string;
