@@ -101,8 +101,8 @@ export default function ShirtEditor({ baseImageUrl, colors: rawColors, editorRef
     const b = new Canvas(backEl.current, { width: SIZE, height: SIZE, backgroundColor: "#f1f5f9" });
     front.current = f;
     back.current = b;
-    nameObj.current = new FabricText("", { left: SIZE / 2, top: 105, originX: "center", fontSize: 40, fontWeight: "bold" });
-    numObj.current = new FabricText("", { left: SIZE / 2, top: 165, originX: "center", fontSize: 140, fontWeight: "bold" });
+    nameObj.current = new FabricText("", { left: SIZE / 2, top: 92, originX: "center", fontSize: 40, fontWeight: "bold" });
+    numObj.current = new FabricText("", { left: SIZE / 2, top: 190, originX: "center", fontSize: 140, fontWeight: "bold" });
     b.add(nameObj.current, numObj.current);
     return () => {
       f.dispose();

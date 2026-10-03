@@ -67,3 +67,12 @@ Netlify ou Vercel, importando o repositório (o Next.js é detectado sozinho). C
 - RLS ativo em todas as tabelas: cada lojista só acessa os próprios dados.
 - Pedidos e itens são criados só pelo servidor (service role), nunca direto pelo navegador.
 - O servidor recalcula preço e confere estoque; nada vem do cliente.
+
+## Duas versões do projeto
+
+| Pasta | O que é | Quando usar |
+|---|---|---|
+| raiz (Next.js) | versão com servidor: rotas `/api`, Stripe Connect opcional | hospedagem com Node (Vercel, VPS) |
+| `site-estatico/` (Vite) | versão **sem servidor**: gera a pasta `dist` para arrastar no Netlify Drop | demonstração e hospedagem simples |
+
+A versão estática tem painel do dono do sistema (`/master`) com período de teste, mensalidade, carência e bloqueio por loja. Veja `site-estatico/README.md` e as migrations em `site-estatico/sql/` (`0004` e `0005`).
