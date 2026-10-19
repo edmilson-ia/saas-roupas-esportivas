@@ -1,5 +1,7 @@
 # SaaS Roupas Esportivas
 
+Em resumo: catálogo online de camisas personalizadas. O cliente escolhe o modelo, personaliza nome, número, brasão e cor em um editor 2D e envia o pedido pelo WhatsApp da loja. O lojista gerencia produtos, estoque e pedidos em um painel.
+
 Catálogo online de camisas personalizadas. O cliente escolhe o modelo, personaliza (nome e número nas costas, brasão na frente, cor) em um editor 2D e envia o pedido pelo WhatsApp da loja. O lojista gerencia produtos, estoque e pedidos em um painel.
 
 **Stack:** Next.js 14 (App Router) · TypeScript · Tailwind · Supabase (Postgres, Auth, Storage) · Fabric.js · PWA. Stripe Connect disponível, desligado por padrão.
